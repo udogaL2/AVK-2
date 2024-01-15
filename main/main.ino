@@ -1,38 +1,151 @@
 #define DEBUG 1
+#define SAFE_SCREEN_TIME 60000
 
+// дисплей ______________________________
 #include   "SPI.h"  
 #include   "SdFat.h"
 #include   <UTFT.h>
-#include   <UTFT_DLB.h>
+// sck - 13, miso - 12, mosi - 11, ss - 10
 #include   "UTFT_SdRaw.h"
 #define    SD_CHIP_SELECT SS
+#define    dispLED 9
 
-UTFT_DLB   myGLCD(TFT01_24SP, 8, 7, 6, 5, 4);
+// led - 9, mosi - 8, sck - 7, cs - 6, reset - 5, d/c - 4
+UTFT       myGLCD(TFT01_24SP, 8, 7, 6, 5, 4);
 SdFat      mySD;
-UTFT_SdRaw myFiles(&myGLCD);  
+UTFT_SdRaw myFiles(&myGLCD); 
+// дисплей ______________________________
 
-extern uint8_t FontRusProp18[];
+// лента ______________________________
+#define LED_PIN 3
+#define LED_NUM 12
+#include "FastLED.h"
+CRGB leds[LED_NUM];
+byte counter;
+CRGB COLORS[] = {CRGB::Red, CRGB::Chartreuse, CRGB::Coral, CRGB::Crimson, CRGB::DeepSkyBlue, 
+                  CRGB::GreenYellow, CRGB::Indigo, CRGB::Magenta, CRGB::Lime, CRGB::MediumSeaGreen, CRGB::MediumPurple, 
+                  CRGB::Orange, CRGB::PaleGreen, CRGB::PaleVioletRed, CRGB::Plaid, CRGB::Purple, CRGB::SandyBrown, 
+                  CRGB::SkyBlue, CRGB::Tomato, CRGB::Yellow};
+// лента ______________________________
 
-uint32_t btnTimer = millis();
+unsigned long btnTimer = millis();
+unsigned long colorTime;
+bool safeScreenFlag = false;
 int BTN_PIN = A0;
 
-void setup() {
+void setup()
+{
   Serial.begin(9600);
   pinMode(BTN_PIN, INPUT);
   pinMode(13, OUTPUT);
+  analogWrite(dispLED, 1023);
+  FastLED.addLeds<WS2812, LED_PIN, GRB>(leds, LED_NUM);
 
   myGLCD.InitLCD();
   myGLCD.clrScr();
 
-  myGLCD.setFont(FontRusProp18);
-  
   while (!mySD.begin(SD_CHIP_SELECT)) {}
+
+  myFiles.load(0, 0, 320, 240, "fon.raw");
+  FastLED.showColor(COLORS[random(0,20)]);
 
   while (millis() - btnTimer < 2500) {}
 }
 
+void setSeed()
+{
+  uint32_t seed = 0;
+  for (int i = 0; i < 16; i++) {
+    seed *= 4;
+    seed += analogRead(A1) & 3;
+    randomSeed(seed);
+  }
+}
 
-void waitForButton(){
+void ligthEffect1() {
+  setSeed();
+  colorTime = millis();
+  
+  CRGB color = COLORS[random(0,20)];
+
+  while(millis() - colorTime < 2500){
+    FastLED.clear();
+    leds[counter] = color;
+    if (++counter >= LED_NUM) counter = 0;
+    FastLED.show();
+    delay(30);
+  }
+
+  FastLED.clear();
+  FastLED.show();
+}
+
+
+void ligthEffect2() {
+  colorTime = millis();
+
+  while(millis() - colorTime < 2500){
+    setSeed();
+    FastLED.clear();
+    leds[0] = COLORS[random(0,20)];
+    leds[1] = COLORS[random(0,20)];
+    leds[2] = COLORS[random(0,20)];
+    leds[3] = COLORS[random(0,20)];
+    leds[4] = COLORS[random(0,20)];
+    leds[5] = COLORS[random(0,20)];
+    leds[6] = COLORS[random(0,20)];
+    leds[7] = COLORS[random(0,20)];
+    leds[8] = COLORS[random(0,20)];
+    leds[9] = COLORS[random(0,20)];
+    leds[10] = COLORS[random(0,20)];
+    leds[11] = COLORS[random(0,20)];
+    
+    FastLED.show();
+    delay(60);
+  }
+
+  FastLED.clear();
+  FastLED.show();
+}
+
+void ligthEffect3() {
+  colorTime = millis();
+
+  while(millis() - colorTime < 5500){
+    for (int i = 0; i < LED_NUM; i++) {
+    leds[i].setHue(counter + i * 255 / LED_NUM);
+    }
+    counter++;        
+    FastLED.show();
+    delay(30); 
+  }
+
+  FastLED.clear();
+  FastLED.show();
+}
+
+void choiseEffect(){
+  setSeed();
+  int effect = random(0, 4);
+
+  if (DEBUG) Serial.println(effect);
+
+  switch (effect)
+  {
+    case 0:
+      ligthEffect3();
+      break;
+    case 1:
+      ligthEffect2();
+      break;
+    default:
+      ligthEffect1();
+      break;
+  }
+}
+
+void waitForButton()
+{
   auto l_m = millis();
   while (true){
       if (millis() - l_m > 50){
@@ -43,83 +156,69 @@ void waitForButton(){
   }
 }
 
-void setSeed(){
-  uint32_t seed = 0;
-  for (int i = 0; i < 16; i++) {
-    seed *= 4;
-    seed += analogRead(A1) & 3;
-    randomSeed(seed);
+void printAns()
+{
+  setSeed();
+  int id = random(0, 8);
+
+  switch (id)
+  {
+    case 0:
+      myFiles.load(16, 48, 190, 50, "t1.raw");
+      break;
+    case 1:
+      myFiles.load(16, 48, 190, 50, "t3.raw");
+      break;
+    default:
+      myFiles.load(16, 48, 190, 50, "t2.raw");
+      break;
   }
 }
 
-void getAns(){
-  setSeed();
-  int id = random(0, 6);
-
-  switch (id){
-    case 0:
-      printTextTwoStr("Узнаете на", "консультации.");
-      break;
-    case 1:
-      printTextOneStr("Это общеизвестно!");
-      break;
-    default:
-      printTextOneStr("Это же очевидно!");
-      break;
-    }
-}
-
-void printTextOneStr(String s1){
-  char arr[s1.length()+1];
-  s1.toCharArray(arr, s1.length()+1);
-
-  RusPrintStr(myGLCD,arr,20,60,0);
-}
-
-void printTextTwoStr(String s1, String s2){
-  char arr[s1.length()+1];
-  s1.toCharArray(arr, s1.length()+1);
-
-  RusPrintStr(myGLCD,arr,20,60,0);
-
-  delay(200);
-  char arr2[s2.length()+1];
-  s2.toCharArray(arr2, s2.length()+1);
-
-  RusPrintStr(myGLCD,arr2,20,80,0);
-}
-
-void mainFrame(){
-  myGLCD.setColor(VGA_BLACK);
-  myGLCD.setBackColor(VGA_WHITE);
-  
+void mainFrame()
+{  
   myFiles.load(0, 0, 320, 240, "avk.raw");
 
-  getAns();
+  delay(40);
+  setSeed();
+
+  choiseEffect();
+
+  delay(40);
+
+  FastLED.showColor(COLORS[random(0,20)]);  
   
+  printAns();
+
   btnTimer = millis();
-  while (millis() - btnTimer < 6500) {}
-  myGLCD.clrScr();
+  while (millis() - btnTimer < 6500);
+  myFiles.load(0, 0, 320, 240, "fon.raw");
 }
 
-void secretFrame(){
+void secretFrame()
+{
+  FastLED.showColor(CRGB::Red);
   myFiles.load(0, 0, 320, 240, "ish.raw");
   btnTimer = millis();
   while (millis() - btnTimer < 3500) {}
-  myGLCD.clrScr();
+  myFiles.load(0, 0, 320, 240, "fon.raw");
 }
 
-void loop() {
+void loop() 
+{
   auto buttonState = digitalRead(BTN_PIN);
   
-  if (buttonState) {
+  if (buttonState && !safeScreenFlag)
+  {
+    FastLED.showColor(COLORS[random(0,20)]);
     int clickCount = 1;
 
     waitForButton();
 
     btnTimer = millis();
 
-    while(millis() - btnTimer < 400){
+    while(millis() - btnTimer < 400)
+    {
       buttonState = digitalRead(BTN_PIN);
       if (buttonState) { 
         btnTimer = millis();
@@ -132,55 +231,29 @@ void loop() {
     
     if (DEBUG) Serial.println(clickCount); //debug
 
-    if (clickCount == 1){
+    if (clickCount == 1)
+    {
       mainFrame();
     }
-    else if (clickCount == 5){
+    else if (clickCount == 5)
+    {
       secretFrame();
     }
-  };
+  }
+  else if (buttonState && safeScreenFlag)
+  {
+    btnTimer = millis();
+    FastLED.showColor(COLORS[random(0,20)]);
+    safeScreenFlag = false;
+    analogWrite(dispLED, 1023);
+    myFiles.load(0, 0, 320, 240, "fon.raw");
+  }
+  else if(!safeScreenFlag && millis() - btnTimer >= SAFE_SCREEN_TIME)
+  {
+    FastLED.clear();
+    FastLED.show();
+    analogWrite(dispLED, 0);
+    myGLCD.clrScr();
+    safeScreenFlag = true;
+  }
 }
-
-
-//=====================================================================
-// перекодировка русских символов и вывод на экран
-void RusPrintStr(UTFT_DLB tft,char *st, int x, int y, int deg)
-{
-char szTextASCII[60];  
-     ConvertUniToAscii(st,szTextASCII,30);     
-     tft.print(szTextASCII, x, y,deg);
-}
-
-//=========================================================================
-// возвращает длину получившейся строки в приемние или 0 при ошибке
-// iDlPri - максимальное длина буфера
-int  ConvertUniToAscii(char szIst[],char szPri[], int iDlPri)
-{
-int iDl = strlen(szIst);  
-int iPr=0,iI;
-uint8_t ui8C,ui8C2;
-
- 
-    for(iI=0;iI<iDl;iI++)
-    { ui8C= szIst[iI]; 
-      if(ui8C!=208&&ui8C!=209) {szPri[iPr]=ui8C; iPr++;}
-      else
-      {  iI++;
-         ui8C2=szIst[iI];  
-         if(ui8C==208)
-         {  
-            if(ui8C2>=144&&ui8C2<=191) {ui8C2=ui8C2-16; szPri[iPr]=ui8C2; iPr++;}
-            else 
-            { if(ui8C2==129) {ui8C2=240; szPri[iPr]=ui8C2; iPr++;}
-            }
-         }
-         if(ui8C==209)
-         {  if(ui8C2>=128&&ui8C2<=143||ui8C2==145) {ui8C2=ui8C2+96; szPri[iPr]=ui8C2; iPr++;}
-         }
-         
-      }
-      if(iPr>=iDlPri) {szPri[iDlPri-1]=0; return 0;}
-   }  
-   szPri[iPr]=0;
-   return iPr;
-}  
