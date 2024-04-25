@@ -1,5 +1,42 @@
-#define DEBUG 1
+#define DEBUG 0
 #define SAFE_SCREEN_TIME 60000
+
+#define SerialP Serial
+#define PLAY  0x03
+#define VOL   0x08
+#define STOP  0x16
+byte buff[10] = {0x7E, 0xFF, 0x06, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0xEF};
+byte nomPlay = 1;
+bool oneplay = 1;
+
+void mp3_check (uint8_t *buf) {      // КС для плеера
+  uint16_t sum = 0;
+  for (byte i = 1; i < 7; i++) {
+    sum += buf[i];
+  }
+  sum = -sum;
+  *(buf + 7) = (uint8_t)(sum >> 8);
+  *(buf + 8) = (uint8_t)sum;
+}
+
+void mp3_cmd (byte com, byte atr) {  // команда на плеер
+  buff[3] = com;
+  buff[6] = atr;
+  mp3_check(buff);
+  for (byte i = 0; i < 10; i++) {
+    SerialP.write(buff[i]);
+  }
+}
+
+void play (byte np) {     // проигрываем запись номер nm в любой момент
+  mp3_cmd(PLAY, np);
+  delay(100);
+}
+
+void stopPlay () {
+  mp3_cmd(STOP, 0);
+  delay(100);
+}
 
 // дисплей ______________________________
 #include   "SPI.h"  
@@ -35,10 +72,10 @@ int BTN_PIN = A0;
 
 void setup()
 {
-  Serial.begin(9600);
+  SerialP.begin(9600);
   pinMode(BTN_PIN, INPUT);
   pinMode(13, OUTPUT);
-  analogWrite(dispLED, 1023);
+  // analogWrite(dispLED, 1023);
   FastLED.addLeds<WS2812, LED_PIN, GRB>(leds, LED_NUM);
 
   myGLCD.InitLCD();
@@ -176,7 +213,8 @@ void printAns()
 }
 
 void mainFrame()
-{  
+{
+  play(1);
   myFiles.load(0, 0, 320, 240, "avk.raw");
 
   delay(40);
@@ -192,6 +230,8 @@ void mainFrame()
 
   btnTimer = millis();
   while (millis() - btnTimer < 6500);
+  
+  stopPlay();
   myFiles.load(0, 0, 320, 240, "fon.raw");
 }
 
