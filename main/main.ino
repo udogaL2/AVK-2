@@ -6,8 +6,6 @@
 #define VOL   0x08
 #define STOP  0x16
 byte buff[10] = {0x7E, 0xFF, 0x06, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0xEF};
-byte nomPlay = 1;
-bool oneplay = 1;
 
 void mp3_check (uint8_t *buf) {      // КС для плеера
   uint16_t sum = 0;
@@ -30,7 +28,7 @@ void mp3_cmd (byte com, byte atr) {  // команда на плеер
 
 void play (byte np) {     // проигрываем запись номер nm в любой момент
   mp3_cmd(PLAY, np);
-  delay(100);
+  delay(300);
 }
 
 void stopPlay () {
@@ -99,8 +97,8 @@ void setSeed()
   }
 }
 
-void ligthEffect1() {
-  setSeed();
+void ligthEffect1()
+{
   colorTime = millis();
   
   CRGB color = COLORS[random(0,20)];
@@ -118,11 +116,11 @@ void ligthEffect1() {
 }
 
 
-void ligthEffect2() {
+void ligthEffect2()
+{
   colorTime = millis();
 
   while(millis() - colorTime < 2500){
-    setSeed();
     FastLED.clear();
     leds[0] = COLORS[random(0,20)];
     leds[1] = COLORS[random(0,20)];
@@ -145,7 +143,8 @@ void ligthEffect2() {
   FastLED.show();
 }
 
-void ligthEffect3() {
+void ligthEffect3()
+{
   colorTime = millis();
 
   while(millis() - colorTime < 5500){
@@ -161,22 +160,27 @@ void ligthEffect3() {
   FastLED.show();
 }
 
-void choiseEffect(){
-  setSeed();
+void choiseEffect()
+{
   int effect = random(0, 4);
 
   if (DEBUG) Serial.println(effect);
+  
+  play(6);
 
   switch (effect)
   {
     case 0:
       ligthEffect3();
+
       break;
     case 1:
       ligthEffect2();
+
       break;
     default:
       ligthEffect1();
+
       break;
   }
 }
@@ -195,38 +199,72 @@ void waitForButton()
 
 void printAns()
 {
-  setSeed();
   int id = random(0, 8);
 
   switch (id)
   {
     case 0:
       myFiles.load(16, 48, 190, 50, "t1.raw");
+
+      play(4);
+
       break;
     case 1:
       myFiles.load(16, 48, 190, 50, "t3.raw");
+      
+      play(3);
+
       break;
     default:
       myFiles.load(16, 48, 190, 50, "t2.raw");
+
+      play(1);
+
       break;
+  }
+}
+
+bool setMainFrameImage()
+{
+  int id = random(0, 5);
+
+  switch (id) {
+    case 0:
+      myFiles.load(0, 0, 320, 240, "ish.raw");
+
+      return false;
+    default:
+      myFiles.load(0, 0, 320, 240, "avk.raw");
+
+      return true;
   }
 }
 
 void mainFrame()
 {
-  play(1);
-  myFiles.load(0, 0, 320, 240, "avk.raw");
-
-  delay(40);
   setSeed();
 
-  choiseEffect();
+  bool state = setMainFrameImage();
+
+  if (!state)
+  {
+    play(5);
+    while (millis() - btnTimer < 4500);
+  }
 
   delay(40);
 
-  FastLED.showColor(COLORS[random(0,20)]);  
-  
-  printAns();
+  if (state) choiseEffect();
+
+  delay(40);
+
+  FastLED.showColor(COLORS[random(0,20)]);
+
+  if (state) 
+  {
+    stopPlay();
+    printAns();
+  }
 
   btnTimer = millis();
   while (millis() - btnTimer < 6500);
@@ -237,10 +275,13 @@ void mainFrame()
 
 void secretFrame()
 {
-  FastLED.showColor(CRGB::Red);
-  myFiles.load(0, 0, 320, 240, "ish.raw");
+  FastLED.showColor(CRGB::Aqua);
+  myFiles.load(0, 0, 320, 240, "b24.raw");
+  play(2);
+  delay(40);
   btnTimer = millis();
-  while (millis() - btnTimer < 3500) {}
+  while (millis() - btnTimer < 27500) {}
+  stopPlay();
   myFiles.load(0, 0, 320, 240, "fon.raw");
 }
 
@@ -275,7 +316,7 @@ void loop()
     {
       mainFrame();
     }
-    else if (clickCount == 5)
+    else if (clickCount == 2)
     {
       secretFrame();
     }
